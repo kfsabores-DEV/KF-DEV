@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KF Sabores - Pedido Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAuRZ6dXoe3EWdUAfztvgQNkgSbzzfuXPY&libraries=places,geometry"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --card-bg: #161616;
+            --gold: #d4af37;
+            --gold-light: #f1d592;
+            --green-action: #2ecc71;
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            background-color: var(--bg-dark); 
+            color: var(--text-main); 
+        }
+
+        /* Estilo dos Cards de Produto */
+        .product-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid #262626;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .product-image {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-bottom: 2px solid var(--gold);
+        }
+
+        /* Botão de Categoria Ativo (Verde/Dourado) */
+        .category-btn { 
+            border: 1px solid #333; 
+            transition: 0.3s; 
+            color: #999; 
+            text-transform: uppercase; 
+            font-size: 11px; 
+            font-weight: 700; 
+            white-space: nowrap; 
+            background: #111;
+        }
+        .category-btn.active { 
+            border-color: var(--gold); 
+            color: var(--gold); 
+            background: rgba(212, 175, 55, 0.1); 
+        }
+
+        .gold-text { color: var(--gold); }
+        .green-text { color: var(--green-action); }
+
+        /* Inputs e Selects Premium */
+        select, input, textarea { 
+            background: #1a1a1a !important; 
+            border: 1px solid #333 !important; 
+            border-radius: 12px !important; 
+            padding: 12px !important; 
+            color: white !important; 
+            width: 100%; 
+            outline: none; 
+            margin-bottom: 8px; 
+            font-size: 14px; 
+        }
+
+        /* Botão Flutuante do Carrinho */
+        #floating-cart {
+            background: var(--green-action);
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.4);
+        }
+
+        .modal-btn { border: 2px solid #333; padding: 12px; border-radius: 15px; font-size: 12px; font-weight: 900; color: #666; text-transform: uppercase; transition: 0.3s; }
+        .modal-btn.active { border-color: var(--green-action); color: var(--green-action); background: rgba(46, 204, 113, 0.1); }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="pb-24">
+
+    <header class="bg-black py-6 flex flex-col items-center border-b-2 border-[#d4af37]">
+        <div class="w-full max-w-lg px-6 text-center">
+            <img src="https://i.postimg.cc/BbRBN8Hh/logo-novo-KF.jpg" alt="KF Sabores" class="mx-auto w-48 h-auto drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]">
+            <p class="text-[10px] mt-2 gold-text tracking-[3px] uppercase font-bold">Pizzaria & Delivery</p>
+        </div>
+    </header>
+
+    <div id="banner-status" class="hidden p-4 mx-4 mt-4 rounded-2xl border border-red-500 bg-red-500/10 text-center">
+        <h2 class="font-black uppercase italic text-sm mb-2 text-red-500">🚫 FECHADO AGORA</h2>
+        <div id="horarios-lista" class="text-[10px] grid grid-cols-2 gap-x-4 gap-y-1 opacity-80 font-bold uppercase"></div>
+    </div>
+
+    <nav class="flex overflow-x-auto bg-black/80 backdrop-blur-md p-4 gap-3 sticky top-0 z-50 border-b border-zinc-800">
+        <button onclick="switchCategory('promos')" class="category-btn active px-6 py-2 rounded-xl shrink-0">🔥 Promos</button>
+        <button onclick="switchCategory('tradicional')" class="category-btn px-6 py-2 rounded-xl shrink-0">🍕 Tradicional</button>
+        <button onclick="switchCategory('especial')" class="category-btn px-6 py-2 rounded-xl shrink-0">🌟 Especial</button>
+        <button onclick="switchCategory('premium')" class="category-btn px-6 py-2 rounded-xl shrink-0">💎 Premium</button>
+        <button onclick="switchCategory('doces')" class="category-btn px-6 py-2 rounded-xl shrink-0">🍫 Doces</button>
+        <button onclick="switchCategory('tapioca')" class="category-btn px-6 py-2 rounded-xl shrink-0">Tapiocas</button>
+        <button onclick="switchCategory('bebidas')" class="category-btn px-6 py-2 rounded-xl shrink-0">🥤 Bebidas</button>
+    </nav>
+
+    <main id="items-container" class="p-4 grid grid-cols-2 gap-4 max-w-lg mx-auto">
+        </main>
+
+    <div id="tapioca-modal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-[100]">
+        <div class="bg-zinc-900 w-full max-w-md rounded-3xl p-6 border border-zinc-700 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-black gold-text italic uppercase">Montar Tapioca</h3>
+            <div id="tapioca-options" class="grid grid-cols-2 gap-2 mt-4"></div>
+            <div id="tapioca-extras" class="grid grid-cols-2 gap-2 mt-4"></div>
+            <button onclick="addTapiocaFinal()" class="w-full bg-[#2ecc71] text-white py-4 rounded-2xl font-black uppercase mt-8">ADICIONAR AO PEDIDO</button>
+            <button onclick="closeModal()" class="w-full py-4 text-zinc-500 text-[10px] uppercase font-bold text-center block">Voltar</button>
+        </div>
+    </div>
+
+    <div id="cart-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[90]">
+        <div id="cart-content" class="bg-zinc-900 w-full max-w-md rounded-3xl p-6 border border-zinc-700 max-h-[90vh] overflow-y-auto relative">
+            <button onclick="toggleCart()" class="absolute top-4 right-4 text-zinc-500 hover:text-white text-3xl font-light p-2">&times;</button>
+            <h2 class="text-xl font-black gold-text mb-4 italic uppercase text-center mt-2">Meu Pedido</h2>
+            <div id="cart-items" class="space-y-2 mb-4"></div>
+            <div id="form-fechamento">
+                <input type="text" id="cust-name" placeholder="Seu Nome">
+                <input type="tel" id="cust-phone" placeholder="WhatsApp (Ex: 21997437285)">
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button id="mode-delivery" onclick="setModalidade('DELIVERY')" class="modal-btn active">🛵 Entrega</button>
+                    <button id="mode-retirada" onclick="setModalidade('RETIRADA')" class="modal-btn">🛍️ Retirada</button>
+                </div>
+                <div id="area-endereco">
+                    <input type="text" id="cust-addr" placeholder="Digite endereço e selecione..." onfocus="initAutocomplete()">
+                    <p id="distancia-info" class="text-[10px] gold-text mb-2 italic font-bold text-center"></p>
+                </div>
+                <textarea id="cust-obs" placeholder="Ponto de referência ou observação"></textarea>
+                <select id="pay-method" onchange="checkPayment()">
+                    <option value="Pix">Pix</option>
+                    <option value="Cartão">Cartão</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                </select>
+                <input type="text" id="troco-val" class="hidden" placeholder="Troco para quanto?">
+                <div class="space-y-1 text-sm border-t border-zinc-800 pt-4 mt-4">
+                    <div class="flex justify-between text-zinc-400"><span>Subtotal:</span><span>R$ <span id="cart-subtotal">0.00</span></span></div>
+                    <div class="flex justify-between text-zinc-400" id="row-taxa"><span>Taxa de Entrega:</span><span>R$ <span id="taxa-valor">0.00</span></span></div>
+                    <div class="flex justify-between text-2xl font-black green-text pt-2"><span>Total:</span><span>R$ <span id="cart-total">0.00</span></span></div>
+                </div>
+                <button onclick="finalizeOrder()" class="w-full bg-green-600 text-white py-4 rounded-2xl font-black uppercase mt-4">Finalizar Pedido</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="item-modal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-[100]">
+        <div class="bg-zinc-900 w-full max-w-md rounded-3xl p-6 border border-zinc-700 max-h-[90vh] overflow-y-auto">
+            <h3 id="modal-title" class="text-2xl font-black gold-text mb-4 italic uppercase text-center"></h3>
+            <div id="modal-options" class="space-y-6"></div>
+            <button onclick="addToCartFinal()" class="w-full bg-[#2ecc71] text-white py-4 rounded-2xl font-black uppercase mt-6">ADICIONAR AO PEDIDO</button>
+            <button onclick="closeModal()" class="w-full py-3 text-zinc-500 text-[10px] mt-2 uppercase font-bold text-center block">Cancelar</button>
+        </div>
+    </div>
+
+    <button onclick="toggleCart()" id="floating-cart" class="fixed bottom-6 right-6 text-black px-6 py-4 rounded-full z-50 flex items-center gap-3">
+        <span class="text-xl">🛒</span><span id="cart-count" class="font-black text-lg">0</span>
+    </button>
+
+    <script>
+        // --- SEU SCRIPT ORIGINAL ---
+        // Adicionei apenas uma pequena mudança na função switchCategory para gerar os CARDS
+        const WHATSAPP_NUMBER = "5521997437285";
+        const URL_PLANILHA = "https://script.google.com/macros/s/AKfycbzFKb7_DtRqgvjV3meQqSVmPZBZ9xO1w74lDIKQN74-G1WazyXRtGR0ywqZJiQgi2_Hgg/exec";
+        
+        let estoquePausado = []; 
+        let zonasEntrega = [];
+        let modoAdmin = false;
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('admin') === 'true') { modoAdmin = true; }
+        
+        const HORARIOS = {
+            4: { abrir: 2000, fechar: 2400 },
+            5: { abrir: 2000, fechar: 2500 },
+            6: { abrir: 2000, fechar: 2500 },
+            0: { abrir: 1900, fechar: 2500 }
+        };
+
+        const menuData = {
+            promos: [
+                { name: "2 Pizzas 25cm + Refri 1L", price: 55.00, pizzas: 2, refri: "1L", img: "https://i.postimg.cc/9F4GfXmP/combo-pizza.jpg" },
+                { name: "1 Pizza 35cm + Refri 2L", price: 46.00, pizzas: 1, refri: "2L", img: "https://i.postimg.cc/9F4GfXmP/combo-pizza.jpg" },
+                { name: "2 Pizzas 35cm + Refri 2L", price: 85.00, pizzas: 2, refri: "2L", img: "https://i.postimg.cc/9F4GfXmP/combo-pizza.jpg" }
+            ],
+            tradicional: [
+                { name: "Mussarela", p25: 24, p35: 39 }, { name: "Presunto", p25: 24, p35: 39 },
+                { name: "Calabresa", p25: 24, p35: 39 }, { name: "3 Queijos", p25: 24, p35: 39 },
+                { name: "Marguerita", p25: 24, p35: 39 }, { name: "Alho", p25: 24, p35: 39 }
+            ],
+            especial: [
+                { name: "Frango c/ Catupiry", p25: 29, p35: 43 }, { name: "Frango c/ Cheddar", p25: 29, p35: 43 },
+                { name: "Portuguesa", p25: 29, p35: 43 }, { name: "Peito de Peru", p25: 29, p35: 43 },
+                { name: "Lombo Canadense", p25: 29, p35: 43 }
+            ],
+            premium: [
+                { name: "Camarão c/ Catupiry", p25: 32, p35: 58 }, { name: "Camarão c/ Cheddar", p25: 32, p35: 58 },
+                { name: "Camarão c/ Alho", p25: 32, p35: 58 }, { name: "Bacon com Ovos", p25: 32, p35: 58 }
+            ],
+            doces: [
+                { name: "Banana c/ Canela", p25: 30, p35: 45 }, { name: "Prestígio", p25: 30, p35: 45 },
+                { name: "M&M", p25: 30, p35: 45 }, { name: "Paçoca", p25: 30, p35: 45 }
+            ],
+            tapioca_cats: [
+                { cat: "Proteínas", items: [{ n: "Lombo Canadense", p: 10 }, { n: "Peito de Peru", p: 13 }, { n: "Frango", p: 13 }] },
+                { cat: "Queijos", items: [{ n: "Minas", p: 10 }, { n: "Mussarela", p: 10 }, { n: "Catupiry", p: 10 }] },
+                { cat: "Doces", items: [{ n: "Nutella", p: 16 }, { n: "Chocolate Preto", p: 14 }] }
+            ],
+            tapioca_extras: ["Leite Condensado", "Orégano", "Cebola", "Tomate", "Nenhum"],
+            bebidas: [
+                { name: "Água", price: 2.50 }, { name: "Coca Lata", price: 6.00 }, { name: "Guaraná 1L", price: 10.00 }
+            ]
+        };
+
+        const SABORES_PIZZA = [...menuData.tradicional, ...menuData.especial, ...menuData.premium, ...menuData.doces].map(s => s.name);
+        const SABORES_PROMO = ["Calabresa", "Mussarela", "Presunto", "3 Queijos"];
+        
+        let cart = []; let currentItem = null; let selectedSize = 35; let tapRecheios = []; let tapExtra = "Nenhum"; 
+        let modalidadeAtual = "DELIVERY"; let taxaEntrega = 0;
+
+        async function init() {
+            verificarStatusLoja();
+            try {
+                const [estoque, mapa] = await Promise.all([
+                    fetch(`${URL_PLANILHA}?action=getEstoque`).then(res => res.json()),
+                    fetch(`${URL_PLANILHA}?action=getMapa`).then(res => res.json())
+                ]);
+                estoquePausado = estoque.filter(item => item.status === "PAUSADO").map(item => item.nome);
+                zonasEntrega = mapa;
+                switchCategory('promos');
+            } catch (e) { switchCategory('promos'); }
+        }
+
+        // --- MUDANÇA NA switchCategory PARA LAYOUT DE CARDS ---
+        function switchCategory(cat) {
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.toggle('active', b.innerText.toLowerCase().includes(cat.substring(0,3))));
+            const container = document.getElementById('items-container');
+            
+            if(cat === 'tapioca') {
+                container.classList.remove('grid-cols-2');
+                container.innerHTML = `<div class="col-span-full bg-zinc-900 p-8 rounded-3xl border-2 border-[#d4af37] text-center"><h4 class="font-black gold-text text-xl mb-2 italic">TAPIOCAS</h4><p class="text-xs text-zinc-400 mb-4">Monte sua combinação favorita!</p><button onclick="openTapiocaModal()" class="w-full bg-[#d4af37] text-black font-black py-4 rounded-2xl text-xs uppercase">Montar Minha Tapioca</button></div>`;
+                return;
+            }
+
+            container.classList.add('grid-cols-2');
+            container.innerHTML = (menuData[cat] || []).map((item, index) => {
+                const isPausado = estoquePausado.includes(item.name.trim());
+                let precoTexto = item.price ? 'R$ '+item.price.toFixed(2) : 'R$ '+item.p25.toFixed(2);
+                // Foto padrão se não houver no objeto
+                let foto = item.img || "https://i.postimg.cc/9F4GfXmP/combo-pizza.jpg";
+
+                return `
+                <div class="product-card" style="${isPausado ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                    <img src="${foto}" class="product-image" alt="${item.name}">
+                    <div class="p-3 flex flex-col flex-grow">
+                        <h4 class="font-black text-white uppercase italic text-[11px] leading-tight mb-1">${item.name}</h4>
+                        <p class="text-[14px] green-text font-black mt-auto">${isPausado ? '🚫 ESGOTADO' : precoTexto}</p>
+                        <button ${isPausado ? 'disabled' : `onclick='openItemModal("${cat}", ${index})'`} 
+                            class="bg-[#2ecc71] text-white w-full py-2 rounded-lg text-[9px] font-black uppercase mt-2">
+                            ${isPausado ? 'INDISPONÍVEL' : 'ADICIONAR +'}
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- TODAS AS OUTRAS FUNÇÕES ORIGINAIS (Mantidas Exatamente Iguais) ---
+        function initAutocomplete() {
+            const input = document.getElementById('cust-addr');
+            const autocomplete = new google.maps.places.Autocomplete(input);
+            autocomplete.addListener('place_changed', async () => {
+                const place = autocomplete.getPlace();
+                if (place.geometry) await verificarLocalizacao(place.geometry.location);
+            });
+            input.addEventListener('blur', () => { setTimeout(() => { geocodificarEndereco(input.value); }, 400); });
+        }
+
+        async function geocodificarEndereco(endereco) {
+            if (!endereco || endereco.length < 5 || endereco === "RETIRADA NA LOJA") return;
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: endereco }, (results, status) => {
+                if (status === "OK" && results[0].geometry) { verificarLocalizacao(results[0].geometry.location); }
+            });
+        }
+
+        async function verificarLocalizacao(loc) {
+            const infoDistancia = document.getElementById('distancia-info');
+            infoDistancia.innerText = "⌛ CALCULANDO TAXA...";
+            try {
+                let dadosTratados = zonasEntrega;
+                if (typeof zonasEntrega === 'string') { dadosTratados = JSON.parse(zonasEntrega); }
+                let zonaAchada = null;
+                for (const zona of dadosTratados) {
+                    if (zona.pontos) {
+                        const caminhos = zona.pontos.map(p => ({ lat: parseFloat(String(p.lat).replace(',','.')), lng: parseFloat(String(p.lng).replace(',','.')) }));
+                        const poly = new google.maps.Polygon({ paths: caminhos });
+                        if (google.maps.geometry.poly.containsLocation(loc, poly)) { zonaAchada = zona; break; }
+                    }
+                }
+                if (zonaAchada) {
+                    taxaEntrega = parseFloat(String(zonaAchada.preco).replace(',','.'));
+                    infoDistancia.innerText = `🛵 TAXA: R$ ${taxaEntrega.toFixed(2)}`;
+                    infoDistancia.style.color = "#2ecc71";
+                } else {
+                    taxaEntrega = 0;
+                    infoDistancia.innerText = `⚠️ FORA DA ÁREA`;
+                }
+            } catch(e) { }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const subtotal = cart.reduce((acc, i) => acc + i.price, 0);
+            const taxa = modalidadeAtual === 'DELIVERY' ? taxaEntrega : 0;
+            document.getElementById('cart-subtotal').innerText = subtotal.toFixed(2);
+            document.getElementById('taxa-valor').innerText = taxa.toFixed(2);
+            document.getElementById('cart-total').innerText = (subtotal + taxa).toFixed(2);
+            document.getElementById('cart-count').innerText = cart.length;
+            document.getElementById('cart-items').innerHTML = cart.map((i, idx) => `
+                <div class="flex justify-between bg-black p-3 rounded-xl border border-zinc-800 text-[10px] mb-2">
+                    <span class="uppercase">${i.name}</span>
+                    <button onclick="cart.splice(${idx},1);updateCartUI()" class="text-red-500 font-bold">✕</button>
+                </div>`).join('');
+        }
+
+        function estaAberto() {
+            if (modoAdmin) return true;
+            const agora = new Date();
+            let dia = agora.getDay();
+            let horaAtual = (agora.getHours() * 100) + agora.getMinutes();
+            if (horaAtual < 500) { horaAtual += 2400; dia = dia === 0 ? 6 : dia - 1; }
+            const config = HORARIOS[dia];
+            return config ? (horaAtual >= config.abrir && horaAtual <= config.fechar) : false;
+        }
+
+        function verificarStatusLoja() {
+            const banner = document.getElementById('banner-status');
+            if (!estaAberto()) {
+                banner.classList.remove('hidden');
+            } else { banner.classList.add('hidden'); }
+        }
+
+        function setModalidade(tipo) {
+            modalidadeAtual = tipo;
+            document.getElementById('mode-delivery').classList.toggle('active', tipo === 'DELIVERY');
+            document.getElementById('mode-retirada').classList.toggle('active', tipo === 'RETIRADA');
+            document.getElementById('area-endereco').classList.toggle('hidden', tipo === 'RETIRADA');
+            document.getElementById('row-taxa').classList.toggle('hidden', tipo === 'RETIRADA');
+            if(tipo === 'RETIRADA') { taxaEntrega = 0; document.getElementById('cust-addr').value = "RETIRADA NA LOJA"; }
+            updateCartUI();
+        }
+
+        function openItemModal(cat, index) {
+            currentItem = menuData[cat][index];
+            if(cat === 'bebidas') { cart.push({ name: currentItem.name, price: currentItem.price }); updateCartUI(); return; }
+            document.getElementById('modal-title').innerText = currentItem.name;
+            const container = document.getElementById('modal-options');
+            let list = (cat === 'promos') ? SABORES_PROMO : SABORES_PIZZA;
+            let html = createPizzaSelect(1, (cat !== 'promos'), currentItem.name, list);
+            if(currentItem.pizzas === 2) html += createPizzaSelect(2, false, list[1], list);
+            if(cat === 'promos' && currentItem.refri) {
+                let bebidasF = menuData.bebidas.filter(b => b.name.includes(currentItem.refri) || b.name.includes("1.5L") || b.name.includes("2L"));
+                html += `<div class="mt-4"><label class="text-[10px] gold-text font-black uppercase italic">Escolha o Refrigerante</label><select id="promo-refri-select">${bebidasF.map(b => `<option value="${b.name}">${b.name}</option>`).join('')}</select></div>`;
+            }
+            if(currentItem.p35) {
+                html += `<div class="flex gap-2 mt-4"><button onclick="selectSize(25)" id="btn-25" class="flex-1 p-3 border-2 rounded-xl text-xs font-bold border-zinc-700">25CM</button><button onclick="selectSize(35)" id="btn-35" class="flex-1 p-3 border-2 rounded-xl text-xs font-bold border-[#2ecc71] text-[#2ecc71]">35CM</button></div>`;
+            }
+            container.innerHTML = html;
+            document.getElementById('item-modal').classList.remove('hidden');
+        }
+
+        function createPizzaSelect(num, isFixed, def, list) {
+            const valDef = list.includes(def) ? def : list[0];
+            return `<div class="space-y-2"><label class="text-[10px] gold-text font-black uppercase italic">Sabor Pizza ${num}</label><div class="grid grid-cols-2 gap-2"><select class="flavor-a" ${isFixed?'disabled':''}>${list.map(f=>`<option value="${f}" ${f===valDef?'selected':''}>${f}</option>`).join('')}</select><select class="flavor-b"><option value="">(INTEIRA)</option>${list.map(f=>`<option value="${f}">½ ${f}</option>`).join('')}</select></div></div>`;
+        }
+
+        function selectSize(s) { 
+            selectedSize = s; 
+            document.getElementById('btn-25').className = s===25?'flex-1 p-3 border-2 rounded-xl text-xs font-bold border-[#2ecc71] text-[#2ecc71]':'flex-1 p-3 border-2 rounded-xl text-xs font-bold border-zinc-700'; 
+            document.getElementById('btn-35').className = s===35?'flex-1 p-3 border-2 rounded-xl text-xs font-bold border-[#2ecc71] text-[#2ecc71]':'flex-1 p-3 border-2 rounded-xl text-xs font-bold border-zinc-700'; 
+        }
+
+        function addToCartFinal() {
+            const flavAs = document.querySelectorAll('.flavor-a'); 
+            const flavBs = document.querySelectorAll('.flavor-b');
+            const refriSelect = document.getElementById('promo-refri-select');
+            let price = currentItem.price || (selectedSize === 25 ? currentItem.p25 : currentItem.p35);
+            let desc = []; 
+            flavAs.forEach((f, i) => { 
+                let sA = f.value; let sB = flavBs[i].value; 
+                desc.push(sB && sB !== sA ? `½ ${sA} / ½ ${sB}` : sA + ' (Inteira)'); 
+            });
+            let finalName = `${currentItem.p35 ? selectedSize+'CM ' : ''}${currentItem.name} (${desc.join(" | ")})`;
+            if(refriSelect) finalName += ` + BEBIDA: ${refriSelect.value}`;
+            cart.push({ name: finalName.toUpperCase(), price });
+            updateCartUI(); closeModal();
+        }
+
+        async function finalizeOrder() {
+            if (!estaAberto()) { alert("LOJA FECHADA!"); return; }
+            const n = document.getElementById('cust-name').value;
+            const tel = document.getElementById('cust-phone').value;
+            const a = document.getElementById('cust-addr').value;
+            const totalStr = document.getElementById('cart-total').innerText;
+            const pagto = document.getElementById('pay-method').value;
+            const obs = document.getElementById('cust-obs').value;
+            const troco = document.getElementById('troco-val').value;
+            
+            if(!n || !tel || (modalidadeAtual==='DELIVERY' && !a) || cart.length === 0) { alert("Preencha todos os campos!"); return; }
+            
+            let msg = `*🔥 NOVO PEDIDO KF SABORES*%0A%0A*👤 CLIENTE:* ${n.toUpperCase()}%0A*📍 END:* ${a.toUpperCase()}%0A*🚚 MOD:* ${modalidadeAtual}%0A*💳 PAGTO:* ${pagto}${pagto==='Dinheiro'?' (Troco p/ '+troco+')':''}%0A%0A*🍕 ITENS:*%0A`;
+            cart.forEach(i => msg += `• ${i.name}%0A`);
+            if(obs) msg += `%0A*📝 OBS:* ${obs.toUpperCase()}%0A`;
+            msg += `%0A*💰 TOTAL: R$ ${totalStr}*`;
+            
+            fetch(URL_PLANILHA, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ nome: n, telefone: tel, endereco: a, total: totalStr, pagamento: pagto, modalidade: modalidadeAtual, itens: cart.map(i=>i.name).join(" | ") + (obs ? " [OBS: "+obs+"]" : ""), taxa: taxaEntrega.toFixed(2), troco: troco }) });
+            
+            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`);
+            cart = []; updateCartUI(); toggleCart();
+        }
+
+        function toggleCart() { document.getElementById('cart-modal').classList.toggle('hidden'); }
+        function closeModal() { document.getElementById('item-modal').classList.add('hidden'); document.getElementById('tapioca-modal').classList.add('hidden'); }
+        function checkPayment() { document.getElementById('troco-val').classList.toggle('hidden', document.getElementById('pay-method').value !== 'Dinheiro'); }
+
+        init();
+    </script>
+</body>
+</html>
